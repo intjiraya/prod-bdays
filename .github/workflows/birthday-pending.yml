@@ -1,0 +1,47 @@
+name: "Birthday — Auto-comment on open"
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  greet:
+    runs-on: ubuntu-latest
+    # Only react to birthday-related issues
+    if: |
+      startsWith(github.event.issue.title, '[BIRTHDAY:ADD]') ||
+      startsWith(github.event.issue.title, '[BIRTHDAY:EDIT]') ||
+      startsWith(github.event.issue.title, '[BIRTHDAY:DELETE]')
+
+    steps:
+      - name: Post pending comment
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issue  = context.payload.issue;
+            const author = issue.user.login;
+            const title  = issue.title;
+
+            let action = 'заявка';
+            if (title.startsWith('[BIRTHDAY:ADD]'))    action = 'заявка на добавление дня рождения';
+            if (title.startsWith('[BIRTHDAY:EDIT]'))   action = 'заявка на изменение данных';
+            if (title.startsWith('[BIRTHDAY:DELETE]')) action = 'заявка на удаление записи';
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              issue_number: issue.number,
+              body: [
+                `👋 Привет, @${author}!`,
+                ``,
+                `Твоя ${action} принята и ожидает проверки администратора. ⏳`,
+                ``,
+                `Обычно это занимает несколько часов. Как только заявка будет одобрена — бот обработает её автоматически и ты получишь уведомление.`,
+                ``,
+                `> _Если в форме допущена ошибка — закрой этот issue и создай новый._`,
+              ].join('\n'),
+            });

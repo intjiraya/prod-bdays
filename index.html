@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Дни рождения комьюнити PROD — Международная Олимпиада по Промышленной Разработке">
+  <title>ДР ПОБЕДА // PROD</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="noise-layer" aria-hidden="true"></div>
+  <div class="grid-layer" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="header-topbar">
+      <span class="topbar-left">PROD&nbsp;//&nbsp;МЕЖДУНАРОДНАЯ ОЛИМПИАДА ПО ПРОМЫШЛЕННОЙ РАЗРАБОТКЕ</span>
+    </div>
+
+    <div class="header-body">
+      <div class="title-group">
+        <div class="title-eyebrow">— КОМЬЮНИТИ —</div>
+        <h1 class="main-title">ДР<br><span class="title-red">ПО</span>БЕДА</h1>
+        <div class="title-caption">ДНИ РОЖДЕНИЯ</div>
+      </div>
+
+      <div class="header-stats">
+        <div class="stat">
+          <div class="stat-num" id="stat-total">—</div>
+          <div class="stat-lbl">УЧАСТНИКОВ</div>
+        </div>
+        <div class="stat-sep"></div>
+        <div class="stat">
+          <div class="stat-num" id="stat-today">—</div>
+          <div class="stat-lbl">СЕГОДНЯ</div>
+        </div>
+        <div class="stat-sep"></div>
+        <div class="stat">
+          <div class="stat-num" id="stat-month">—</div>
+          <div class="stat-lbl">В ЭТОМ МЕСЯЦЕ</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-ticker-wrap">
+      <div class="header-rule"></div>
+      <div class="ticker-track" aria-hidden="true">
+        <div class="ticker">ДРПОБЕДА.РФ &nbsp;✦&nbsp; BIRTHDAY REGISTRY &nbsp;✦&nbsp; РЕЕСТР ДНЕЙ РОЖДЕНИЯ PROD &nbsp;✦&nbsp; ДРПОБЕДА.РФ &nbsp;✦&nbsp; BIRTHDAY REGISTRY &nbsp;✦&nbsp; РЕЕСТР ДНЕЙ РОЖДЕНИЯ PROD &nbsp;✦&nbsp; ДРПОБЕДА.РФ &nbsp;✦&nbsp; BIRTHDAY REGISTRY &nbsp;✦&nbsp; РЕЕСТР ДНЕЙ РОЖДЕНИЯ PROD &nbsp;✦&nbsp;</div>
+      </div>
+      <div class="header-rule"></div>
+    </div>
+  </header>
+
+  <section class="spotlight-zone today-zone" id="today-zone" hidden>
+    <div class="zone-eyebrow">
+      <span class="zone-tag tag-today">⬛ СЕГОДНЯ ДЕНЬ РОЖДЕНИЯ</span>
+    </div>
+    <div class="zone-row" id="today-cards"></div>
+  </section>
+
+  <section class="spotlight-zone upcoming-zone" id="upcoming-zone" hidden>
+    <div class="zone-eyebrow">
+      <span class="zone-tag tag-upcoming">▷ БЛИЖАЙШИЕ 7 ДНЕЙ</span>
+    </div>
+    <div class="zone-row" id="upcoming-cards"></div>
+  </section>
+
+  <div class="controls-bar">
+    <label class="search-wrap">
+      <span class="visually-hidden">Поиск</span>
+      <span class="search-prefix" aria-hidden="true">⌕</span>
+      <input
+        type="search"
+        id="search-input"
+        class="search-input"
+        placeholder="ПОИСК ПО TELEGRAM / ЗАМЕТКАМ..."
+        autocomplete="off"
+        spellcheck="false"
+      >
+    </label>
+
+    <nav class="month-nav" id="month-nav" aria-label="Фильтр по месяцу">
+      <button class="month-btn active" data-month="0">ВСЕ</button>
+    </nav>
+  </div>
+
+  <main class="birthday-grid" id="birthday-grid">
+    <div class="grid-loader" id="grid-loader">
+      ЗАГРУЗКА<span class="cursor-blink">▌</span>
+    </div>
+  </main>
+
+  <div class="empty-state" id="empty-state" hidden>
+    <div class="empty-cross">✕</div>
+    <div class="empty-label">// ЗАПИСИ НЕ НАЙДЕНЫ //</div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <span class="footer-brand">ДРПОБЕДА.РФ</span>
+      <a href="#" id="footer-add-link" class="footer-cta" target="_blank" rel="noopener">
+        + ДОБАВИТЬ СВОЙ ДЕНЬ РОЖДЕНИЯ
+      </a>
+      <span class="footer-count" id="footer-count">0 УЧАСТНИКОВ</span>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

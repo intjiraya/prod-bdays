@@ -1,0 +1,294 @@
+name: "Birthday Bot — Process approved issues"
+
+# Triggered when an admin adds the 'birthday-approved' label
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    # Only run when admin approves a birthday issue
+    if: |
+      github.event.label.name == 'birthday-approved' &&
+      (
+        startsWith(github.event.issue.title, '[BIRTHDAY:ADD]') ||
+        startsWith(github.event.issue.title, '[BIRTHDAY:EDIT]') ||
+        startsWith(github.event.issue.title, '[BIRTHDAY:DELETE]')
+      )
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Process issue
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs     = require('fs');
+            const { execSync } = require('child_process');
+
+            const issue  = context.payload.issue;
+            const author = issue.user.login;
+            const title  = issue.title.trim();
+            const body   = issue.body || '';
+
+            // ──────────────────────────────────────────
+            // HELPERS
+            // ──────────────────────────────────────────
+
+            /** Parse a field from a GitHub issue form body */
+            function parseField(label) {
+              const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const re = new RegExp(`###\\s*${escaped}\\s*\\n+([\\s\\S]*?)(?=\\n###|$)`, 'i');
+              const m  = body.match(re);
+              if (!m) return null;
+              const v = m[1].trim();
+              return (v === '_No response_' || v === '') ? null : v;
+            }
+
+            async function comment(msg) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                issue_number: issue.number,
+                body: msg,
+              });
+            }
+
+            async function closeIssue(...extraLabels) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed',
+              });
+              if (extraLabels.length) {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo:  context.repo.repo,
+                  issue_number: issue.number,
+                  labels: extraLabels,
+                });
+              }
+            }
+
+            function validateBirthday(str) {
+              if (!str) return false;
+              const m = str.trim().match(/^(\d{1,2})\.(\d{1,2})$/);
+              if (!m) return false;
+              const day = parseInt(m[1], 10), month = parseInt(m[2], 10);
+              if (month < 1 || month > 12) return false;
+              const maxDay = [31,29,31,30,31,30,31,31,30,31,30,31][month - 1];
+              return day >= 1 && day <= maxDay;
+            }
+
+            function normBirthday(str) {
+              const [d, mo] = str.trim().split('.');
+              return `${d.padStart(2,'0')}.${mo.padStart(2,'0')}`;
+            }
+
+            function normTelegram(str) {
+              if (!str) return null;
+              const s = str.trim();
+              return s.startsWith('@') ? s : '@' + s;
+            }
+
+            function gitCommit(msg) {
+              execSync('git config user.name "Birthday Bot"');
+              execSync('git config user.email "41898282+github-actions[bot]@users.noreply.github.com"');
+              execSync('git add data/birthdays.json');
+              execSync(`git commit -m "${msg.replace(/"/g, '\\"')}"`);
+              execSync('git push');
+            }
+
+            // ──────────────────────────────────────────
+            // LOAD DATA
+            // ──────────────────────────────────────────
+            let birthdays = [];
+            try {
+              birthdays = JSON.parse(fs.readFileSync('data/birthdays.json', 'utf8'));
+            } catch {
+              birthdays = [];
+            }
+
+            // ──────────────────────────────────────────
+            // ADD
+            // ──────────────────────────────────────────
+            if (title.startsWith('[BIRTHDAY:ADD]')) {
+
+              // One entry per GitHub user
+              const existing = birthdays.find(b => b.github_user === author);
+              if (existing) {
+                await comment([
+                  `❌ @${author}, ты уже зарегистрирован в базе (${existing.telegram})!`,
+                  ``,
+                  `Чтобы изменить данные — создай issue **[BIRTHDAY:EDIT]**.`,
+                  `Чтобы удалить — **[BIRTHDAY:DELETE]**.`,
+                ].join('\n'));
+                await closeIssue('birthday-rejected');
+                return;
+              }
+
+              const telegram  = normTelegram(parseField('Telegram handle'));
+              const birthday  = parseField('День рождения');
+              const wishlist  = parseField('Вишлист (необязательно)');
+              const note      = parseField('Заметка о себе (необязательно)');
+
+              if (!telegram) {
+                await comment(`❌ Не указан Telegram handle. Создай новый issue с правильно заполненной формой.`);
+                await closeIssue('birthday-invalid');
+                return;
+              }
+
+              if (!validateBirthday(birthday)) {
+                await comment(`❌ Неверный формат даты: \`${birthday || 'пусто'}\`. Нужен формат **ДД.ММ** (например: \`25.09\`).`);
+                await closeIssue('birthday-invalid');
+                return;
+              }
+
+              // Telegram uniqueness check
+              const tgTaken = birthdays.find(b =>
+                b.telegram.toLowerCase() === telegram.toLowerCase()
+              );
+              if (tgTaken) {
+                await comment(`❌ Telegram handle \`${telegram}\` уже зарегистрирован. Если это ошибка — обратись к администратору.`);
+                await closeIssue('birthday-rejected');
+                return;
+              }
+
+              const entry = {
+                telegram,
+                birthday:   normBirthday(birthday),
+                wishlist:   wishlist || '',
+                note:       note ? note.substring(0, 200) : '',
+                github_user: author,
+                added_at:   new Date().toISOString().split('T')[0],
+              };
+
+              birthdays.push(entry);
+              fs.writeFileSync('data/birthdays.json', JSON.stringify(birthdays, null, 2) + '\n');
+              gitCommit(`feat: add birthday for ${telegram} (by @${author})`);
+
+              await comment([
+                `✅ Готово, @${author}! День рождения **${telegram}** добавлен в реестр PROD 🎂`,
+                ``,
+                `📅 Дата: **${normBirthday(birthday)}**`,
+                entry.wishlist ? `🎁 Вишлист: ${entry.wishlist}` : '',
+                ``,
+                `Запись появится на сайте через ~1 минуту.`,
+              ].filter(l => l !== '').join('\n'));
+
+              await closeIssue('birthday-added');
+
+            // ──────────────────────────────────────────
+            // EDIT
+            // ──────────────────────────────────────────
+            } else if (title.startsWith('[BIRTHDAY:EDIT]')) {
+
+              const idx = birthdays.findIndex(b => b.github_user === author);
+              if (idx === -1) {
+                await comment(`❌ @${author}, у тебя нет записи в базе. Сначала добавь день рождения через **[BIRTHDAY:ADD]**.`);
+                await closeIssue('birthday-not-found');
+                return;
+              }
+
+              const entry = { ...birthdays[idx] };
+              const changes = [];
+
+              const newTelegram = normTelegram(parseField('Новый Telegram handle (если меняешь)'));
+              const newBirthday = parseField('Новая дата рождения (если меняешь)');
+              const newWishlist = parseField('Новый вишлист (если меняешь)');
+              const newNote     = parseField('Новая заметка (если меняешь)');
+
+              if (newTelegram && newTelegram.toLowerCase() !== entry.telegram.toLowerCase()) {
+                const tgTaken = birthdays.find((b, i) =>
+                  i !== idx && b.telegram.toLowerCase() === newTelegram.toLowerCase()
+                );
+                if (tgTaken) {
+                  await comment(`❌ Telegram handle \`${newTelegram}\` уже занят другим участником.`);
+                  await closeIssue('birthday-invalid');
+                  return;
+                }
+                entry.telegram = newTelegram;
+                changes.push(`Telegram: ${newTelegram}`);
+              }
+
+              if (newBirthday) {
+                if (!validateBirthday(newBirthday)) {
+                  await comment(`❌ Неверный формат даты: \`${newBirthday}\`. Нужен формат **ДД.ММ**.`);
+                  await closeIssue('birthday-invalid');
+                  return;
+                }
+                const norm = normBirthday(newBirthday);
+                if (norm !== entry.birthday) {
+                  entry.birthday = norm;
+                  changes.push(`Дата: ${norm}`);
+                }
+              }
+
+              if (newWishlist) {
+                if (newWishlist.toUpperCase() === 'УДАЛИТЬ') {
+                  entry.wishlist = '';
+                  changes.push('Вишлист удалён');
+                } else {
+                  entry.wishlist = newWishlist;
+                  changes.push(`Вишлист обновлён`);
+                }
+              }
+
+              if (newNote) {
+                if (newNote.toUpperCase() === 'УДАЛИТЬ') {
+                  entry.note = '';
+                  changes.push('Заметка удалена');
+                } else {
+                  entry.note = newNote.substring(0, 200);
+                  changes.push('Заметка обновлена');
+                }
+              }
+
+              if (changes.length === 0) {
+                await comment(`ℹ️ @${author}, изменений не обнаружено — все поля совпадают с текущими данными.`);
+                await closeIssue();
+                return;
+              }
+
+              birthdays[idx] = entry;
+              fs.writeFileSync('data/birthdays.json', JSON.stringify(birthdays, null, 2) + '\n');
+              gitCommit(`feat: update birthday for ${entry.telegram} (by @${author})`);
+
+              await comment([
+                `✅ @${author}, данные обновлены!`,
+                ``,
+                changes.map(c => `— ${c}`).join('\n'),
+              ].join('\n'));
+
+              await closeIssue('birthday-updated');
+
+            // ──────────────────────────────────────────
+            // DELETE
+            // ──────────────────────────────────────────
+            } else if (title.startsWith('[BIRTHDAY:DELETE]')) {
+
+              const idx = birthdays.findIndex(b => b.github_user === author);
+              if (idx === -1) {
+                await comment(`❌ @${author}, у тебя нет записи в базе.`);
+                await closeIssue('birthday-not-found');
+                return;
+              }
+
+              const deleted = birthdays[idx];
+              birthdays.splice(idx, 1);
+              fs.writeFileSync('data/birthdays.json', JSON.stringify(birthdays, null, 2) + '\n');
+              gitCommit(`feat: remove birthday for ${deleted.telegram} (by @${author})`);
+
+              await comment(`✅ @${author}, запись **${deleted.telegram}** удалена из реестра.`);
+              await closeIssue('birthday-deleted');
+            }

@@ -1,0 +1,22 @@
+name: "🗑️ Удалить день рождения"
+description: Удалить свои данные из реестра PROD
+title: "[BIRTHDAY:DELETE]"
+labels:
+  - birthday-pending
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🗑️ Удаление данных
+
+        После одобрения твоя запись будет полностью удалена с сайта.
+
+        > Это действие **необратимо**. Чтобы вернуться — нужно будет создать новый [Add Birthday] issue.
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Подтверждение удаления
+      options:
+        - label: Я хочу **удалить свою** запись из реестра дней рождения PROD. Это моё осознанное решение.
+          required: true

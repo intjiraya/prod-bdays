@@ -1,0 +1,64 @@
+name: "🎂 Добавить день рождения"
+description: Добавить свой день рождения в реестр PROD
+title: "[BIRTHDAY:ADD] "
+labels:
+  - birthday-pending
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🎂 Добавление дня рождения
+
+        Заполни форму и дождись одобрения администратора.
+
+        > **⚠️ Важно:** добавлять можно только **свой** день рождения!
+        > Один GitHub-аккаунт = одна запись.
+        > После одобрения данные появятся на сайте автоматически.
+
+  - type: input
+    id: telegram
+    attributes:
+      label: Telegram handle
+      description: Твой никнейм в Telegram (с @ или без)
+      placeholder: "@username"
+    validations:
+      required: true
+
+  - type: input
+    id: birthday
+    attributes:
+      label: День рождения
+      description: Только день и месяц — формат **ДД.ММ** (год не указывается)
+      placeholder: "25.09"
+    validations:
+      required: true
+
+  - type: input
+    id: wishlist
+    attributes:
+      label: Вишлист (необязательно)
+      description: Ссылка на вишлист — Ozon, WB, Amazon, любой другой сайт
+      placeholder: "https://..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: note
+    attributes:
+      label: Заметка о себе (необязательно)
+      description: Что-нибудь о тебе — максимум 200 символов
+      placeholder: "Люблю Rust и Kubernetes"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: agreement
+    attributes:
+      label: Подтверждение
+      options:
+        - label: >
+            Это **мой** день рождения. Я даю согласие на публикацию указанных данных на сайте дрпобеда.рф.
+          required: true
+        - label: >
+            Я понимаю, что один аккаунт GitHub = одна запись. Повторная попытка будет отклонена.
+          required: true

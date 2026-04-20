@@ -1,0 +1,62 @@
+name: "✏️ Изменить день рождения"
+description: Изменить свои данные в реестре PROD
+title: "[BIRTHDAY:EDIT] "
+labels:
+  - birthday-pending
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## ✏️ Изменение данных
+
+        Заполни только те поля, которые хочешь изменить.
+        Пустые поля останутся **без изменений**.
+
+        > Чтобы **очистить** вишлист или заметку — напиши `УДАЛИТЬ` в соответствующем поле.
+
+        > **⚠️ Редактировать можно только свои данные!**
+        > Бот проверит, что GitHub-аккаунт совпадает с записью в базе.
+
+  - type: input
+    id: telegram
+    attributes:
+      label: Новый Telegram handle (если меняешь)
+      description: Оставь пустым, если не меняется
+      placeholder: "@new_username"
+    validations:
+      required: false
+
+  - type: input
+    id: birthday
+    attributes:
+      label: Новая дата рождения (если меняешь)
+      description: Формат **ДД.ММ** — оставь пустым, если не меняется
+      placeholder: "25.09"
+    validations:
+      required: false
+
+  - type: input
+    id: wishlist
+    attributes:
+      label: Новый вишлист (если меняешь)
+      description: Ссылка или `УДАЛИТЬ` для очистки
+      placeholder: "https://... или УДАЛИТЬ"
+    validations:
+      required: false
+
+  - type: textarea
+    id: note
+    attributes:
+      label: Новая заметка (если меняешь)
+      description: До 200 символов, или `УДАЛИТЬ` для очистки
+      placeholder: "Новая информация о себе, или УДАЛИТЬ"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: agreement
+    attributes:
+      label: Подтверждение
+      options:
+        - label: Это мои данные — я изменяю только свою запись.
+          required: true
