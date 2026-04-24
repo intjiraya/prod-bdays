@@ -1,0 +1,133 @@
+name: "Birthday Notifier — Telegram"
+
+on:
+  schedule:
+    - cron: '0 21 * * *'  # 00:00 MSK (UTC+3) = 21:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Send birthday notifications
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          node << 'EOF'
+          const https = require('https');
+          const fs    = require('fs');
+
+          const PHRASES = JSON.parse(fs.readFileSync('data/phrases.json', 'utf8'));
+          const birthdays = JSON.parse(fs.readFileSync('data/birthdays.json', 'utf8'));
+
+          function getPhrase(handle) {
+            // Deterministic by handle so same person always gets same vibe
+            let hash = 0;
+            for (const c of handle) hash = (hash * 31 + c.charCodeAt(0)) >>> 0;
+            return PHRASES[hash % PHRASES.length];
+          }
+
+          function toCommand(handle) {
+            // @intjiraya → /intjiraya_s_dr
+            return '/' + handle.replace('@', '') + '_s_dr';
+          }
+
+          // Current date in Moscow timezone
+          const msk   = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Moscow' }));
+          const day   = String(msk.getDate()).padStart(2, '0');
+          const month = String(msk.getMonth() + 1).padStart(2, '0');
+          const today = `${day}.${month}`;
+
+          console.log(`Today MSK: ${today}`);
+
+          const toNotify  = birthdays.filter(b => b.birthday === today);
+
+          if (toNotify.length === 0) {
+            console.log('No birthdays today.');
+            process.exit(0);
+          }
+
+          const token  = process.env.TELEGRAM_BOT_TOKEN;
+          const chatId = process.env.TELEGRAM_CHAT_ID;
+
+          function sendMessage(text) {
+            return new Promise((resolve, reject) => {
+              const body = JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' });
+              const req  = https.request(
+                {
+                  hostname: 'api.telegram.org',
+                  path:     `/bot${token}/sendMessage`,
+                  method:   'POST',
+                  headers:  { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+                },
+                res => {
+                  let data = '';
+                  res.on('data', chunk => { data += chunk; });
+                  res.on('end', () => {
+                    const result = JSON.parse(data);
+                    if (result.ok) resolve(result);
+                    else reject(new Error(result.description));
+                  });
+                }
+              );
+              req.on('error', reject);
+              req.write(body);
+              req.end();
+            });
+          }
+
+          function buildMessage(people) {
+            if (people.length === 1) {
+              const b      = people[0];
+              const handle = b.telegram.startsWith('@') ? b.telegram : '@' + b.telegram;
+              const lines  = [
+                `🎂 Сегодня у ${handle} день рождения!`,
+                '',
+                getPhrase(handle),
+              ];
+              if (b.wishlist) lines.push('', `🎁 ${b.wishlist}`);
+              lines.push('', toCommand(handle));
+              return lines.join('\n');
+            }
+
+            // Multiple birthdays — one combined message
+            const count   = people.length;
+            const noun    = count === 2 ? 'два именинника' : count === 3 ? 'три именинника' : `${count} именинника`;
+            const lines   = [`🎂 Сегодня сразу ${noun}!`, ''];
+
+            for (const b of people) {
+              const handle = b.telegram.startsWith('@') ? b.telegram : '@' + b.telegram;
+              lines.push(`🥳 ${handle}`);
+              lines.push(getPhrase(handle));
+              if (b.wishlist) lines.push(`🎁 ${b.wishlist}`);
+              lines.push('');
+            }
+
+            for (const b of people) {
+              const handle = b.telegram.startsWith('@') ? b.telegram : '@' + b.telegram;
+              lines.push(toCommand(handle));
+            }
+
+            return lines.join('\n');
+          }
+
+          async function main() {
+            const text = buildMessage(toNotify);
+            try {
+              await sendMessage(text);
+              console.log(`Sent for: ${toNotify.map(b => b.telegram).join(', ')}`);
+            } catch (err) {
+              console.error(`Failed: ${err.message}`);
+              process.exit(1);
+            }
+          }
+
+          main();
+          EOF

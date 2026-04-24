@@ -43,8 +43,12 @@ function getZodiac(day, month) {
   return '★';
 }
 
+function getMskNow() {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Moscow' }));
+}
+
 function daysUntilBirthday(day, month) {
-  const now   = new Date();
+  const now   = getMskNow();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   let next    = new Date(today.getFullYear(), month - 1, day);
   if (next < today) next = new Date(today.getFullYear() + 1, month - 1, day);
@@ -157,7 +161,7 @@ function pluralRu(n) {
 // STATS
 // ============================================================
 function updateStats() {
-  const curMonth = new Date().getMonth() + 1;
+  const curMonth = getMskNow().getMonth() + 1;
   document.getElementById('stat-total').textContent  = allEntries.length;
   document.getElementById('stat-today').textContent  = allEntries.filter(b => b._today).length;
   document.getElementById('stat-month').textContent  = allEntries.filter(b => b._month === curMonth).length;
